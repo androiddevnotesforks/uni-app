@@ -2712,6 +2712,9 @@ class UniElement extends HTMLElement {
     }
     return (parent == null ? void 0 : parent._page) || null;
   }
+  get uniPage() {
+    return this.getPage();
+  }
   getBoundingClientRectAsync(callback) {
     var _a, _b;
     if (callback) {
@@ -4185,7 +4188,13 @@ let maxWidth = 960;
 let baseWidth = 375;
 let includeWidth = 750;
 function checkDeviceWidth() {
-  const { windowWidth, pixelRatio, platform } = getBaseSystemInfo();
+  let windowWidth, pixelRatio, platform;
+  {
+    const { windowWidth: w, pixelRatio: p2, platform: pf } = getBaseSystemInfo();
+    windowWidth = w;
+    pixelRatio = p2;
+    platform = pf;
+  }
   deviceWidth = windowWidth;
   deviceDPR = pixelRatio;
   isIOS$1 = platform === "ios";
@@ -8340,16 +8349,18 @@ class UniDialogPageImpl extends UniPageImpl {
 function initXPage(vm, route, page) {
   var _a, _b;
   initPageVm(vm, page);
-  Object.defineProperty(vm, "$pageLayoutInstance", {
-    get() {
-      var _a2, _b2;
-      let res = (_a2 = vm.$) == null ? void 0 : _a2.parent;
-      while (res && ((_b2 = res.type) == null ? void 0 : _b2.name) !== "Page") {
-        res = res.parent;
+  if (!("$pageLayoutInstance" in vm)) {
+    Object.defineProperty(vm, "$pageLayoutInstance", {
+      get() {
+        var _a2, _b2;
+        let res = (_a2 = vm.$) == null ? void 0 : _a2.parent;
+        while (res && ((_b2 = res.type) == null ? void 0 : _b2.name) !== "Page") {
+          res = res.parent;
+        }
+        return res;
       }
-      return res;
-    }
-  });
+    });
+  }
   vm.$basePage = vm.$page;
   const pageInstance = vm.$pageLayoutInstance;
   if (!isDialogPageInstance(pageInstance)) {
@@ -9445,6 +9456,7 @@ function setupPage(comp) {
       getPage$BasePage(instance2.proxy).options = query;
       instance2.proxy.options = query;
       const pageMeta = usePageMeta();
+      updateCurPageCssVar(pageMeta);
       instance2.onReachBottom = reactive([]);
       instance2.onPageScroll = reactive([]);
       watch(
@@ -27623,8 +27635,9 @@ const _sfc_main$2 = {
       popover: {},
       bottomNavigationHeight: 0,
       appTheme: null,
-      osTheme: null,
-      hostTheme: null
+      hostTheme: null,
+      menuItemClicked: false,
+      cancelButtonClicked: false
     };
   },
   onLoad(options) {
@@ -27665,14 +27678,14 @@ const _sfc_main$2 = {
     } else if (osLanguage != null) {
       this.language = osLanguage;
     }
-    const osTheme = systemInfo.osTheme;
     const appTheme = systemInfo.appTheme;
     if (appTheme != null && appTheme != "auto") {
       this.appTheme = appTheme;
       this.handleThemeChange();
     }
-    if (osTheme != null) {
-      this.osTheme = osTheme;
+    const osTheme = systemInfo.osTheme;
+    if (osTheme != null && this.appTheme == null) {
+      this.appTheme = osTheme;
       this.handleThemeChange();
     }
     const hostTheme = systemInfo.hostTheme;
@@ -27787,6 +27800,9 @@ const _sfc_main$2 = {
     this.isLandscape = systemInfo.deviceOrientation == "landscape";
   },
   onUnload() {
+    if (!this.menuItemClicked && !this.cancelButtonClicked) {
+      uni.$emit(this.failEventName, {});
+    }
     uni.$off(this.optionsEventName, null);
     uni.$off(this.readyEventName, null);
     uni.$off(this.successEventName, null);
@@ -27812,10 +27828,12 @@ const _sfc_main$2 = {
       }, 250);
     },
     handleMenuItemClick(tapIndex) {
+      this.menuItemClicked = true;
       this.closeActionSheet();
       uni.$emit(this.successEventName, tapIndex);
     },
     handleCancel() {
+      this.cancelButtonClicked = true;
       this.closeActionSheet();
       uni.$emit(this.failEventName, {});
     },
@@ -27824,8 +27842,6 @@ const _sfc_main$2 = {
         this.theme = this.hostTheme;
       } else if (this.appTheme != null) {
         this.theme = this.appTheme;
-      } else if (this.osTheme != null) {
-        this.theme = this.osTheme;
       }
     }
   }

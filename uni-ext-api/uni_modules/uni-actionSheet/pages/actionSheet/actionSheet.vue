@@ -95,12 +95,13 @@
         // #endif
         bottomNavigationHeight: 0,
         appTheme: null as string | null,
-        osTheme: null as string | null,
         hostTheme: null as string | null,
         // #ifdef APP-ANDROID || APP-IOS
         appThemeChangeCallbackId: -1,
         osThemeChangeCallbackId: -1,
         // #endif
+        menuItemClicked: false,
+        cancelButtonClicked: false,
       }
     },
     onLoad(options) {
@@ -144,14 +145,14 @@
       } else if (osLanguage != null) {
         this.language = osLanguage
       }
-      const osTheme = systemInfo.osTheme
       const appTheme = systemInfo.appTheme
       if (appTheme != null && appTheme != "auto") {
         this.appTheme = appTheme
         this.handleThemeChange()
       }
-      if (osTheme != null) {
-        this.osTheme = osTheme
+      const osTheme = systemInfo.osTheme
+      if (osTheme != null && this.appTheme == null) {
+        this.appTheme = osTheme
         this.handleThemeChange()
       }
       // #ifdef WEB
@@ -184,10 +185,6 @@
           this.appTheme = appTheme
           this.handleThemeChange()
         }
-      })
-      this.osThemeChangeCallbackId = uni.onOsThemeChange((res: OsThemeChangeResult) => {
-        this.osTheme = res.osTheme
-        this.handleThemeChange()
       })
       // #endif
     },
@@ -292,6 +289,10 @@
       this.isLandscape = systemInfo.deviceOrientation == 'landscape'
     },
     onUnload() {
+      if (!this.menuItemClicked && !this.cancelButtonClicked) {
+        // 非用户交互导致关闭 actionSheet, 触发 fail 回调
+        uni.$emit(this.failEventName, {})
+      }
       uni.$off(this.optionsEventName, null)
       uni.$off(this.readyEventName, null)
       uni.$off(this.successEventName, null)
@@ -332,10 +333,12 @@
         }, 250)
       },
       handleMenuItemClick(tapIndex: number) {
+        this.menuItemClicked = true
         this.closeActionSheet()
         uni.$emit(this.successEventName, tapIndex)
       },
       handleCancel() {
+        this.cancelButtonClicked = true
         this.closeActionSheet()
         uni.$emit(this.failEventName, {})
       },
@@ -344,8 +347,6 @@
           this.theme = this.hostTheme!
         } else if(this.appTheme != null){
           this.theme = this.appTheme!
-        } else if(this.osTheme != null){
-          this.theme = this.osTheme!
         }
       }
     }
