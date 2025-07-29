@@ -372,6 +372,16 @@ export function initXPage(
     vm.$page = vm.$pageLayoutInstance?.$dialogPage!
     pageInstance.$dialogPage!.vm = vm
     pageInstance.$dialogPage!.$vm = vm
+    // fix dialogPage $basePage.fullPath & $basePage.id
+    vm.$basePage.fullPath = vm.$basePage.path
+    const parentPage = vm.$page.getParentPage()
+    if (parentPage) {
+      if (!parentPage.vm.$dialogPagesNum) {
+        parentPage.vm.$dialogPagesNum = 0
+      }
+      parentPage.vm.$dialogPagesNum++
+      vm.$basePage.id = vm.$basePage.id * 10 + parentPage.vm.$dialogPagesNum
+    }
   }
 }
 
@@ -414,20 +424,4 @@ export function decrementEscBackPageNum() {
   if (escBackPageNum === 0) {
     document.removeEventListener('keydown', handleEscKeyPress)
   }
-}
-
-export function triggerDialogPageOnHide(instance: ComponentInternalInstance) {
-  const parentPage = (instance.proxy?.$page as UniPage).getParentPage()
-  const parentPageInstance = parentPage?.vm.$pageLayoutInstance
-  if (parentPageInstance) {
-    const dialogPages = parentPageInstance.$dialogPages.value
-    if (dialogPages.length > 1) {
-      const preDialogPage = dialogPages[dialogPages.length - 2]
-      if (preDialogPage.vm) {
-        const { onHide } = preDialogPage.vm.$
-        onHide && invokeArrayFns(onHide)
-      }
-    }
-  }
-  dialogPageTriggerParentHide(instance.proxy?.$page as UniDialogPage)
 }
